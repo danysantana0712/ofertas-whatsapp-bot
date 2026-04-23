@@ -1,5 +1,5 @@
 # Imagem base com Node.js e Chromium
-FROM node:18-slim
+FROM node:18-bullseye
 
 # Instalar dependências do sistema necessárias para o Puppeteer
 RUN apt-get update && apt-get install -y \
@@ -20,21 +20,17 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 # Criar diretório da aplicação
 WORKDIR /app
 
-# Copiar package.json e package-lock.json
-COPY package*.json ./
+# Copiar package.json
+COPY package.json ./
 
 # Instalar dependências
-RUN npm install --production
+RUN npm install
 
 # Copiar código da aplicação
 COPY . .
 
 # Criar diretório para persistência da sessão
 RUN mkdir -p /app/.wwebjs_auth
-
-# Healthcheck para o Railway
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD node healthcheck.js || exit 1
 
 # Comando para iniciar
 CMD ["node", "index.js"]
