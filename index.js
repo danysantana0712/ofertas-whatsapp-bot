@@ -59,15 +59,24 @@ server.listen(PORT, () => {
 // Conectar ao MongoDB
 async function conectarMongoDB() {
     try {
+        console.log('🔌 Tentando conectar ao MongoDB...');
+        console.log(`   URI: ${MONGO_URI.substring(0, 30)}...`);
+        console.log(`   Banco: ${DB_NAME}`);
+        console.log(`   Coleção: ${COLLECTION_NAME}`);
+        
         const mongoClient = new MongoClient(MONGO_URI);
         await mongoClient.connect();
         db = mongoClient.db(DB_NAME);
         produtosCollection = db.collection(COLLECTION_NAME);
-        console.log('✅ Conectado ao MongoDB!');
-        console.log(`📁 Banco: ${DB_NAME} | Coleção: ${COLLECTION_NAME}`);
+        
+        // Testar a conexão
+        const testCount = await produtosCollection.countDocuments();
+        console.log(`✅ Conectado ao MongoDB! Total de documentos: ${testCount}`);
+        
         return true;
     } catch (err) {
         console.error('❌ Erro ao conectar no MongoDB:', err.message);
+        console.error('   Stack:', err.stack);
         return false;
     }
 }
@@ -297,7 +306,7 @@ function inicializarWhatsApp() {
                 }
             });
             console.log(`✅ QR Code salvo em: ${qrPath}`);
-            console.log(`🌐 Acesse: https://seu-app.up.railway.app/qr-code.png`);
+            console.log(`🌐 Acesse: https://${process.env.RAILWAY_STATIC_URL || 'localhost:' + PORT}/qr-code.png`);
         } catch (err) {
             console.error('Erro ao salvar QR Code:', err);
         }
@@ -359,13 +368,19 @@ function inicializarWhatsApp() {
 async function iniciar() {
     console.log('🚀 Iniciando Bot de Ofertas Shopee...\n');
     
-    // Conectar ao MongoDB primeiro
+    // Conectar ao MongoDB primeiro (OBRIGATÓRIO)
     const mongoConectado = await conectarMongoDB();
     if (!mongoConectado) {
-        console.log('⚠️  Continuando sem MongoDB...');
+        console.log('❌ ERRO CRÍTICO: Não foi possível conectar ao MongoDB!');
+        console.log('⚠️  Bot não pode funcionar sem o banco de dados.');
+        console.log('\n🔧 Verifique:');
+        console.log('   1. Se a variável MONGO_URI está configurada corretamente no Railway');
+        console.log('   2. Se a string de conexão do MongoDB Atlas está válida');
+        console.log('   3. Se o IP do Railway está na whitelist do MongoDB Atlas');
+        process.exit(1);
     }
     
-    // Inicializar WhatsApp
+    // Inicializar WhatsApp só depois de conectar ao MongoDB
     inicializarWhatsApp();
 }
 
