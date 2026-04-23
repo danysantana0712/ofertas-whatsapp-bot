@@ -1,5 +1,6 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const { MongoClient } = require('mongodb');
 const https = require('https');
 const fs = require('fs');
@@ -31,11 +32,22 @@ const server = http.createServer((req, res) => {
             botReady: isBotReady,
             timestamp: new Date().toISOString()
         }));
+    } else if (req.url === '/qr-code.png') {
+        // Servir imagem do QR Code
+        const qrPath = path.join(__dirname, 'public', 'qr-code.png');
+        if (fs.existsSync(qrPath)) {
+            res.writeHead(200, { 'Content-Type': 'image/png' });
+            fs.createReadStream(qrPath).pipe(res);
+        } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('QR Code ainda não gerado. Aguarde...');
+        }
     } else {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
             message: 'Shopee WhatsApp Bot',
-            status: isBotReady ? 'online' : 'starting'
+            status: isBotReady ? 'online' : 'starting',
+            qrCode: '/qr-code.png'
         }));
     }
 });
@@ -263,10 +275,32 @@ function inicializarWhatsApp() {
     });
 
     // QR Code
-    client.on('qr', (qr) => {
-        console.log('\n--- ESCANEIE O QR CODE ABAIXO ---');
+    client.on('qr', async (qr) => {
+        console.log('\n--- QR CODE GERADO ---');
+        console.log('📱 Escaneie o QR Code ou acesse /qr-code para baixar a imagem');
+        
+        // Gerar QR Code no terminal (pode ficar danificado no Railway)
         qrcode.generate(qr, { small: true });
-        console.log('\n⚠️  QR Code gerado! Escaneie com seu WhatsApp.');
+        
+        // Salvar QR Code como imagem para download
+        try {
+            const qrPath = path.join(__dirname, 'public', 'qr-code.png');
+            if (!fs.existsSync(path.dirname(qrPath))) {
+                fs.mkdirSync(path.dirname(qrPath), { recursive: true });
+            }
+            await QRCode.toFile(qrPath, qr, {
+                width: 400,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#ffffff'
+                }
+            });
+            console.log(`✅ QR Code salvo em: ${qrPath}`);
+            console.log(`🌐 Acesse: https://seu-app.up.railway.app/qr-code.png`);
+        } catch (err) {
+            console.error('Erro ao salvar QR Code:', err);
+        }
     });
 
     // Bot pronto
