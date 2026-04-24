@@ -119,15 +119,41 @@ async function buscarProduto() {
             return { produto: produtoNovo, isNovo: true };
         }
 
-        // 2. Se não houver novo, busca um aleatório já enviado
+        console.log('⚠️ Nenhum produto novo, buscando entre os já enviados...');
+
+        // 2. Se não houver novo, busca um produto já enviado, mas não recentemente
+        // Busca produtos enviados há mais de 1 hora
+        const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000);
+        
         const produtoAntigo = await produtosCollection.aggregate([
-            { $match: { status: 'concluido', enviado: true } },
+            { 
+                $match: { 
+                    status: 'concluido', 
+                    enviado: true,
+                    $or: [
+                        { data_envio: { $exists: false } },
+                        { data_envio: { $lt: umaHoraAtras } }
+                    ]
+                } 
+            },
             { $sample: { size: 1 } }
         ]).toArray();
 
         if (produtoAntigo.length > 0) {
-            console.log(`♻️  Produto antigo (repetido): ${produtoAntigo[0].nome}`);
+            console.log(`♻️ Produto antigo (repetido): ${produtoAntigo[0].nome}`);
             return { produto: produtoAntigo[0], isNovo: false };
+        }
+
+        // 3. Se todos foram enviados recentemente, pega qualquer um aleatório
+        console.log('⚠️ Todos os produtos foram enviados recentemente, pegando qualquer um...');
+        const qualquerProduto = await produtosCollection.aggregate([
+            { $match: { status: 'concluido' } },
+            { $sample: { size: 1 } }
+        ]).toArray();
+
+        if (qualquerProduto.length > 0) {
+            console.log(`🎲 Produto aleatório: ${qualquerProduto[0].nome}`);
+            return { produto: qualquerProduto[0], isNovo: false };
         }
 
         return { produto: null, isNovo: false };
