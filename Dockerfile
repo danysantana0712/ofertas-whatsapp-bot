@@ -1,5 +1,5 @@
 # Imagem base com Node.js e Chromium
-FROM node:18-bullseye
+FROM node:18-bullseye-slim
 
 # Instalar dependências do sistema necessárias para o Puppeteer
 RUN apt-get update && apt-get install -y \
@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y \
 
 # Configurar variáveis de ambiente para o Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    NODE_OPTIONS="--max-old-space-size=512"
 
 # Criar diretório da aplicação
 WORKDIR /app
@@ -23,8 +24,8 @@ WORKDIR /app
 # Copiar package.json
 COPY package.json ./
 
-# Instalar dependências
-RUN npm install
+# Instalar dependências (sem cache para economizar memória)
+RUN npm install --no-cache --prefer-offline
 
 # Copiar código da aplicação
 COPY . .
@@ -33,4 +34,4 @@ COPY . .
 RUN mkdir -p /app/.wwebjs_auth
 
 # Comando para iniciar
-CMD ["node", "index.js"]
+CMD ["node", "--max-old-space-size=512", "index.js"]
